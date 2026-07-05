@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-tri-bg text-white antialiased;
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-tri-soft px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-tri-purple;
+  }
+}
