@@ -9,15 +9,12 @@ import { racesRouter } from "./routes/races.js";
 import { plannedWorkoutsRouter } from "./routes/plannedWorkouts.js";
 import { aiCoachRouter } from "./routes/aiCoach.js";
 import { stravaRouter } from "./routes/strava.js";
-import { isStravaConnected } from "./lib/stravaClient.js";
-import { syncActivities } from "./lib/stravaSync.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const origins = (process.env.FRONTEND_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",");
-const SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
 app.use(cors({ origin: origins }));
 app.use(express.json());
@@ -30,13 +27,8 @@ app.use(plannedWorkoutsRouter);
 app.use(aiCoachRouter);
 app.use(stravaRouter);
 
-function syncIfConnected() {
-  if (!isStravaConnected()) return;
-  syncActivities().catch((error) => console.warn("Strava sync failed:", error.message));
-}
-
+// Strava is only ever called on initial connect or when the user clicks "Re-pull" in
+// the UI (POST /api/strava/sync) — no polling, to stay well under Strava's rate limit.
 app.listen(PORT, () => {
   console.log(`Backend API running at http://localhost:${PORT}`);
-  syncIfConnected();
-  setInterval(syncIfConnected, SYNC_INTERVAL_MS);
 });

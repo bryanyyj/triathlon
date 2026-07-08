@@ -54,6 +54,20 @@ export function initSchema(db) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_activities_sport_type ON activities(sport_type)`);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS activity_zone_seconds (
+      activity_id TEXT PRIMARY KEY,
+      z1_recovery_sec REAL DEFAULT 0,
+      z2_endurance_sec REAL DEFAULT 0,
+      z3_tempo_sec REAL DEFAULT 0,
+      z4_threshold_sec REAL DEFAULT 0,
+      z5_vo2max_sec REAL DEFAULT 0,
+      z6_anaerobic_sec REAL DEFAULT 0,
+      has_hr_data INTEGER DEFAULT 0,
+      fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS strava_auth (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       access_token TEXT,
