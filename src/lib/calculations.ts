@@ -65,6 +65,34 @@ export function buildWeeklyVolume(activities: Activity[]): WeeklyVolumePoint[] {
   return Array.from(map.values()).sort((a, b) => a.week.localeCompare(b.week));
 }
 
+export function buildDailyLoad(activities: Activity[]): Map<string, number> {
+  const map = new Map<string, number>();
+
+  for (const activity of activities) {
+    if (!["swim", "bike", "run"].includes(activity.sportType)) continue;
+    const day = activity.startDate.slice(0, 10);
+    map.set(day, (map.get(day) || 0) + estimateActivityLoad(activity));
+  }
+
+  return map;
+}
+
+export type WeeklyTssPoint = { week: string; tss: number };
+
+export function buildWeeklyTss(activities: Activity[]): WeeklyTssPoint[] {
+  const map = new Map<string, number>();
+
+  for (const activity of activities) {
+    if (!["swim", "bike", "run"].includes(activity.sportType)) continue;
+    const week = getWeekKey(activity.startDate);
+    map.set(week, (map.get(week) || 0) + estimateActivityLoad(activity));
+  }
+
+  return Array.from(map.entries())
+    .map(([week, tss]) => ({ week, tss }))
+    .sort((a, b) => a.week.localeCompare(b.week));
+}
+
 function estimateIntensityFactor(activity: Activity): number {
   if (activity.averageHeartRate) {
     return Math.min(1.2, Math.max(0.5, activity.averageHeartRate / 145));

@@ -5,6 +5,7 @@ dotenv.config();
 
 const TOKEN_URL = "https://www.strava.com/oauth/token";
 const ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities";
+const ACTIVITY_BASE_URL = "https://www.strava.com/api/v3/activities";
 const PER_PAGE = 200;
 const MAX_PAGES = 20;
 
@@ -149,4 +150,32 @@ export async function fetchStravaActivitiesSince(afterEpochSeconds) {
   }
 
   return activities;
+}
+
+export class StravaRateLimitError extends Error {}
+
+// Returns { time: number[], heartrate: number[] } or null if the activity has no HR stream.
+export async function fetchActivityHeartRateStream(activityId) {
+  const accessToken = await getAccessToken();
+  const url = new URL(`${ACTIVITY_BASE_URL}/${activityId}/streams`);
+  url.searchParams.set("keys", "time,heartrate");
+  url.searchParams.set("key_by_type", "true");
+
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+  if (response.status === 404) return null;
+  if (response.status === 429) throw new StravaRateLimitError("Strava rate limit reached");
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Strava streams request failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  const time = data.time?.data;
+  const heartrate = data.heartrate?.data;
+
+  if (!time?.length || !heartrate?.length) return null;
+
+  return { time, heartrate };
 }

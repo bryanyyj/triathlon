@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { exchangeAuthorizationCode, isStravaConnected, getStravaAthleteName } from "../lib/stravaClient.js";
-import { syncActivities } from "../lib/stravaSync.js";
+import { syncActivities, backfillActivityZones } from "../lib/stravaSync.js";
+import { getZoneBackfillProgress } from "../lib/activityStore.js";
 
 export const stravaRouter = Router();
 
@@ -44,10 +45,15 @@ stravaRouter.get("/api/strava/callback", async (req, res) => {
   }
 });
 
+stravaRouter.get("/api/strava/zones-status", (req, res) => {
+  res.json(getZoneBackfillProgress());
+});
+
 stravaRouter.post("/api/strava/sync", async (req, res) => {
   try {
-    const count = await syncActivities({ full: Boolean(req.body?.full) });
-    res.json({ synced: count });
+    const synced = await syncActivities({ full: Boolean(req.body?.full) });
+    const zoneResult = await backfillActivityZones();
+    res.json({ synced, zonesBackfilled: zoneResult.processed, zonesRateLimited: zoneResult.rateLimited });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,11 +1,12 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { WeeklyVolumePoint } from "../types";
+import { SPORT_COLORS, SPORT_LABELS } from "../lib/sportColors";
 
-const SERIES = [
-  { key: "swim", label: "Swim", color: "#3ab7ff" },
-  { key: "bike", label: "Bike", color: "#3adf9b" },
-  { key: "run", label: "Run", color: "#ff9f43" },
-] as const;
+const SERIES = (["swim", "bike", "run"] as const).map((key) => ({
+  key,
+  label: SPORT_LABELS[key],
+  color: SPORT_COLORS[key],
+}));
 
 function formatWeek(week: string): string {
   const d = new Date(week);

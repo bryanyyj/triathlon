@@ -2,6 +2,7 @@ import type {
   Activity,
   DashboardSummary,
   FatigueReadiness,
+  HrZonesBySport,
   PlannedWorkout,
   Race,
   WeeklyVolumePoint,
@@ -65,6 +66,43 @@ export async function getStravaStatus(): Promise<StravaStatus> {
 
 export function connectStrava(): void {
   window.location.href = `${API_BASE_URL}/api/strava/connect`;
+}
+
+export type ZonesBackfillProgress = {
+  total: number;
+  withZones: number;
+  missing: number;
+};
+
+export async function getZonesStatus(): Promise<ZonesBackfillProgress> {
+  return apiGet<ZonesBackfillProgress>("/api/strava/zones-status");
+}
+
+export type SyncResult = {
+  synced: number;
+  zonesBackfilled: number;
+  zonesRateLimited: boolean;
+};
+
+// Manual re-pull only — no polling. Zone backfill fetches one stream request per
+// activity, so this can take a while; give it a generous timeout.
+export async function syncStrava(): Promise<SyncResult> {
+  const response = await fetch(`${API_BASE_URL}/api/strava/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  return response.json();
+}
+
+export async function getHrZones(params?: { startDate?: string; endDate?: string }): Promise<HrZonesBySport> {
+  const query = new URLSearchParams();
+  if (params?.startDate) query.set("startDate", params.startDate);
+  if (params?.endDate) query.set("endDate", params.endDate);
+  const qs = query.toString();
+  return apiGet<HrZonesBySport>(`/api/dashboard/hr-zones${qs ? `?${qs}` : ""}`);
 }
 
 export async function getActivities(params?: {

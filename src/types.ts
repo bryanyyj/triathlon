@@ -95,6 +95,21 @@ export type FatigueReadiness = {
   chronicLoad: number;
 };
 
+export type ZoneSeconds = {
+  z1RecoverySec: number;
+  z2EnduranceSec: number;
+  z3TempoSec: number;
+  z4ThresholdSec: number;
+  z5Vo2maxSec: number;
+  z6AnaerobicSec: number;
+};
+
+export type HrZonesBySport = {
+  swim: ZoneSeconds;
+  bike: ZoneSeconds;
+  run: ZoneSeconds;
+};
+
 export type SportFilter = "all" | "swim" | "bike" | "run";
 
 export type QuickFilter = "7d" | "30d" | "90d" | "ytd" | "all";
