@@ -24,7 +24,7 @@ type FiltersProps = {
 
 export function Filters({ sport, onSportChange, quickFilter, onQuickFilterChange }: FiltersProps) {
   return (
-    <section className="rounded-2xl bg-tri-card border border-white/10 p-4 flex flex-wrap items-center gap-4">
+    <section className="sticky top-0 z-20 rounded-2xl bg-tri-card border border-white/10 p-4 flex flex-wrap items-center gap-4 shadow-lg">
       <div className="flex items-center gap-2">
         <span className="text-xs uppercase tracking-widest text-white/40">Sport</span>
         <div className="flex gap-1 rounded-xl bg-tri-soft p-1">

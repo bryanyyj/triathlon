@@ -62,7 +62,8 @@ export function HrZonesBySportChart({ zones }: { zones: HrZonesBySport | null })
               <XAxis
                 type="number"
                 domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
+                ticks={[0, 25, 50, 75, 100]}
+                tickFormatter={(v) => `${Math.round(v)}%`}
                 stroke="#898781"
                 tick={{ fill: "#898781", fontSize: 12 }}
                 axisLine={{ stroke: "#383835" }}

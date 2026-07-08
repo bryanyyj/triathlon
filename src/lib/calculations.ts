@@ -35,13 +35,13 @@ export function buildDashboardSummary(activities: Activity[]): DashboardSummary 
   };
 }
 
+// Weeks run Monday–Sunday; the bucket is keyed by that week's Sunday (the last day).
 function getWeekKey(dateString: string): string {
   const date = new Date(dateString);
-  const monday = new Date(date);
-  const day = monday.getDay();
-  const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
-  monday.setDate(diff);
-  return monday.toISOString().slice(0, 10);
+  const day = date.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  const sunday = new Date(date);
+  sunday.setDate(date.getDate() + (day === 0 ? 0 : 7 - day));
+  return sunday.toISOString().slice(0, 10);
 }
 
 export function buildWeeklyVolume(activities: Activity[]): WeeklyVolumePoint[] {
