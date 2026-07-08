@@ -187,7 +187,7 @@ export function Dashboard() {
 
         <PlannedWorkouts workouts={plannedWorkouts} activities={allActivities} onAdd={handleAddPlannedWorkout} />
 
-        {fatigue && <FatigueReadinessCard data={fatigue} />}
+        {fatigue && <FatigueReadinessCard data={fatigue} activities={allActivities} />}
 
         <AICoachPanel />
       </div>

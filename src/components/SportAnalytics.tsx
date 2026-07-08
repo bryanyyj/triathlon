@@ -4,6 +4,7 @@ import type { Activity, HrZonesBySport, SportType, ZoneSeconds } from "../types"
 import { SPORT_COLORS, SPORT_ICONS, SPORT_LABELS } from "../lib/sportColors";
 import { ZONE_DEFS } from "../lib/zoneColors";
 import { formatDuration } from "../lib/format";
+import { rollingAverage } from "../lib/rollingAverage";
 
 const SPORTS: { key: keyof HrZonesBySport; label: string; icon: string; color: string }[] = (
   Object.keys(SPORT_COLORS) as (keyof HrZonesBySport)[]
@@ -31,14 +32,6 @@ function formatPaceOrSpeed(sport: SportType, value: number | null): string {
   if (sport === "bike") return `${value.toFixed(1)} km/h`;
   if (sport === "run") return `${formatClock(value)} /km`;
   return `${formatClock(value)} /100m`;
-}
-
-function rollingAverage(values: number[], window: number): number[] {
-  return values.map((_, i) => {
-    const start = Math.max(0, i - window + 1);
-    const slice = values.slice(start, i + 1);
-    return slice.reduce((sum, v) => sum + v, 0) / slice.length;
-  });
 }
 
 function buildTrendData(sportActivities: Activity[], sport: SportType) {
