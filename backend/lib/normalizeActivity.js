@@ -14,6 +14,7 @@ export function normalizeActivity(activity) {
     weightedPower: activity.weighted_average_watts != null ? Number(activity.weighted_average_watts) : null,
     averageCadence: activity.average_cadence != null ? Number(activity.average_cadence) : null,
     startDate: activity.start_date || activity.start_date_local,
+    gearId: activity.gear_id || null,
   };
 }
 

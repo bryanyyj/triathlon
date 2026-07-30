@@ -53,13 +53,15 @@ export function buildWeeklyVolume(activities: Activity[]): WeeklyVolumePoint[] {
     const week = getWeekKey(activity.startDate);
 
     if (!map.has(week)) {
-      map.set(week, { week, swim: 0, bike: 0, run: 0, hours: 0 });
+      map.set(week, { week, swim: 0, bike: 0, run: 0, swimHours: 0, bikeHours: 0, runHours: 0, hours: 0 });
     }
 
     const item = map.get(week)!;
     const sport = activity.sportType as "swim" | "bike" | "run";
+    const hours = activity.movingTimeSeconds / 3600;
     item[sport] += activity.distanceMeters / 1000;
-    item.hours += activity.movingTimeSeconds / 3600;
+    item[`${sport}Hours`] += hours;
+    item.hours += hours;
   }
 
   return Array.from(map.values()).sort((a, b) => a.week.localeCompare(b.week));

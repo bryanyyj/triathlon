@@ -62,6 +62,22 @@ export function Filters({ sport, onSportChange, quickFilter, onQuickFilterChange
   );
 }
 
+// Number of days the current filter spans, ending today. Returns null for
+// "all time" (open-ended — callers fall back to the earliest activity).
+export function quickFilterToDays(filter: QuickFilter): number | null {
+  if (filter === "all") return null;
+  if (filter === "7d") return 7;
+  if (filter === "30d") return 30;
+  if (filter === "90d") return 90;
+  if (filter === "ytd") {
+    const start = new Date();
+    start.setMonth(0, 1);
+    const now = new Date();
+    return Math.max(1, Math.round((now.getTime() - start.getTime()) / 86_400_000) + 1);
+  }
+  return 7;
+}
+
 export function quickFilterToRange(filter: QuickFilter): { startDate?: string; endDate?: string } {
   if (filter === "all") return {};
 

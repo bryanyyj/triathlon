@@ -2,6 +2,8 @@ import type {
   Activity,
   DashboardSummary,
   FatigueReadiness,
+  Gear,
+  GearAnalytics,
   HrZonesBySport,
   PlannedWorkout,
   Race,
@@ -58,6 +60,7 @@ export async function checkHealth(): Promise<boolean> {
 export type StravaStatus = {
   connected: boolean;
   athleteName: string | null;
+  syncing: boolean;
 };
 
 export async function getStravaStatus(): Promise<StravaStatus> {
@@ -80,18 +83,19 @@ export async function getZonesStatus(): Promise<ZonesBackfillProgress> {
 
 export type SyncResult = {
   synced: number;
-  zonesBackfilled: number;
-  zonesRateLimited: boolean;
 };
 
-// Manual re-pull only — no polling. Zone backfill fetches one stream request per
-// activity, so this can take a while; give it a generous timeout.
+// Pulls new activities and returns as soon as they're saved. HR-zone backfill and
+// gear sync continue on the backend afterwards — poll getStravaStatus().syncing to
+// know when that background work has finished.
 export async function syncStrava(): Promise<SyncResult> {
   const response = await fetch(`${API_BASE_URL}/api/strava/sync`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-    signal: AbortSignal.timeout(120000),
+    // Full re-pull so renamed/updated activities and their gear IDs are refreshed,
+    // not just brand-new activities.
+    body: JSON.stringify({ full: true }),
+    signal: AbortSignal.timeout(60000),
   });
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   return response.json();
@@ -130,12 +134,25 @@ export async function getFatigueReadiness(): Promise<FatigueReadiness> {
   return apiGet<FatigueReadiness>("/api/dashboard/fatigue");
 }
 
+export async function getGear(): Promise<Gear[]> {
+  const { gear } = await apiGet<{ gear: Gear[] }>("/api/strava/gear");
+  return gear;
+}
+
+export async function getGearAnalytics(gearId: string): Promise<GearAnalytics> {
+  return apiGet<GearAnalytics>(`/api/strava/gear/${encodeURIComponent(gearId)}/analytics`);
+}
+
 export async function getRaces(): Promise<Race[]> {
   return apiGet<Race[]>("/api/races");
 }
 
 export async function createRace(race: Partial<Race>): Promise<Race> {
   return apiPost<Race>("/api/races", race);
+}
+
+export async function updateRace(id: string, race: Partial<Race>): Promise<Race> {
+  return apiPut<Race>(`/api/races/${id}`, race);
 }
 
 export async function deleteRace(id: string): Promise<void> {

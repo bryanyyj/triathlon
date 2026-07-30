@@ -69,6 +69,9 @@ export type WeeklyVolumePoint = {
   swim: number;
   bike: number;
   run: number;
+  swimHours: number;
+  bikeHours: number;
+  runHours: number;
   hours: number;
 };
 
@@ -108,6 +111,50 @@ export type HrZonesBySport = {
   swim: ZoneSeconds;
   bike: ZoneSeconds;
   run: ZoneSeconds;
+};
+
+export type GearType = "bike" | "shoe" | "other";
+
+export type Gear = {
+  id: string;
+  type: GearType;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  distanceMeters: number;
+  primary: boolean;
+  retired: boolean;
+  activityCount: number;
+  lastUsed: string | null;
+};
+
+export type GearMonthlyBreakdown = {
+  month: string;
+  sessions: number;
+  distanceKm: number;
+  durationMin: number;
+};
+
+export type GearRecentSession = {
+  date: string;
+  distanceKm: number;
+  durationMin: number;
+  avgHr: number | null;
+  avgSpeed: number | null;
+};
+
+export type GearAnalytics = {
+  totalSessions: number;
+  avgDistanceKm: number;
+  avgDurationMin: number;
+  avgSpeedKmh: number | null;
+  avgPaceMinKm: number | null;
+  avgHeartRate: number | null;
+  avgCadence: number | null;
+  avgPower: number | null;
+  totalElevationM: number;
+  monthlyBreakdown: GearMonthlyBreakdown[];
+  recentSessions: GearRecentSession[];
 };
 
 export type SportFilter = "all" | "swim" | "bike" | "run";

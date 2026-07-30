@@ -42,3 +42,26 @@ export function buildFatigueExplanation(data: FatigueReadiness): { zone: Fatigue
 
   return { zone, headline, detail };
 }
+
+// Plain-language reason for each gauge. Mirrors the backend formula:
+//   fatigueScore = 50 + (acuteLoad − chronicLoad) × 1.5   (clamped 0–100)
+//   readinessScore = 100 − fatigueScore
+export function explainFatigueScore(data: FatigueReadiness): string {
+  const acute = Math.round(data.acuteLoad);
+  const chronic = Math.round(data.chronicLoad);
+  const diff = data.acuteLoad - data.chronicLoad;
+
+  if (Math.abs(diff) < 5) {
+    return `Sits near the 50 baseline: your last 7 days (${acute} load) closely match your 4-week weekly average (${chronic}).`;
+  }
+  if (diff > 0) {
+    return `Above the 50 baseline because your last 7 days (${acute} load) exceed your 4-week weekly average (${chronic}) — recent work is accumulating fatigue.`;
+  }
+  return `Below the 50 baseline because your last 7 days (${acute} load) are lighter than your 4-week weekly average (${chronic}) — you're shedding fatigue.`;
+}
+
+export function explainReadinessScore(data: FatigueReadiness): string {
+  const readiness = Math.round(data.readinessScore);
+  const state = readiness >= 60 ? "fresh and primed for hard training" : readiness >= 40 ? "moderately recovered" : "carrying meaningful fatigue — favor recovery";
+  return `Simply 100 − fatigue = ${readiness}. Higher is fresher, so you're ${state}.`;
+}

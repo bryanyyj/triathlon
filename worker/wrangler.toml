@@ -1,0 +1,15 @@
+name = "tri-training-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tri-training-db"
+database_id = "038a9ace-c509-4134-904e-ce4f4df95cb3"
+
+[vars]
+FRONTEND_ORIGINS = "http://localhost:5173"
+
+[triggers]
+crons = ["*/15 * * * *"]

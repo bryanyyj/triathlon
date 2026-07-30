@@ -4,10 +4,10 @@ import { normalizeActivity } from "./normalizeActivity.js";
 const upsertStatement = db.prepare(`
   INSERT INTO activities (
     id, name, sport_type, distance_m, moving_time_sec, elapsed_time_sec,
-    elevation_gain_m, average_hr, max_hr, average_power, weighted_power, average_cadence, start_date, synced_at
+    elevation_gain_m, average_hr, max_hr, average_power, weighted_power, average_cadence, start_date, gear_id, synced_at
   ) VALUES (
     @id, @name, @sport_type, @distance_m, @moving_time_sec, @elapsed_time_sec,
-    @elevation_gain_m, @average_hr, @max_hr, @average_power, @weighted_power, @average_cadence, @start_date, CURRENT_TIMESTAMP
+    @elevation_gain_m, @average_hr, @max_hr, @average_power, @weighted_power, @average_cadence, @start_date, @gear_id, CURRENT_TIMESTAMP
   )
   ON CONFLICT(id) DO UPDATE SET
     name = excluded.name,
@@ -22,12 +22,20 @@ const upsertStatement = db.prepare(`
     weighted_power = excluded.weighted_power,
     average_cadence = excluded.average_cadence,
     start_date = excluded.start_date,
+    gear_id = COALESCE(excluded.gear_id, activities.gear_id),
     synced_at = CURRENT_TIMESTAMP
 `);
 
-const upsertMany = db.transaction((rows) => {
-  for (const row of rows) upsertStatement.run(row);
-});
+function upsertMany(rows) {
+  db.exec("BEGIN");
+  try {
+    for (const row of rows) upsertStatement.run(row);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
 
 function toRow(activity) {
   return {
@@ -44,6 +52,7 @@ function toRow(activity) {
     weighted_power: activity.weightedPower,
     average_cadence: activity.averageCadence,
     start_date: activity.startDate,
+    gear_id: activity.gearId ?? null,
   };
 }
 
@@ -78,6 +87,32 @@ export function hasActivities() {
 export function getLastSyncedStartDate() {
   const row = db.prepare(`SELECT MAX(start_date) AS maxDate FROM activities`).get();
   return row?.maxDate || null;
+}
+
+// Per-gear usage derived from our own synced activities. Only populated for
+// activities pulled after gear capture was added, so counts can trail Strava's
+// lifetime totals — we use it for "activities logged" and "last used" only.
+export function getGearUsageStats() {
+  return db
+    .prepare(
+      `
+      SELECT gear_id AS gearId,
+             COUNT(*) AS activityCount,
+             COALESCE(SUM(distance_m), 0) AS distanceMeters,
+             MAX(start_date) AS lastUsed
+      FROM activities
+      WHERE gear_id IS NOT NULL AND gear_id != ''
+      GROUP BY gear_id
+      `
+    )
+    .all();
+}
+
+export function getDistinctGearIds() {
+  return db
+    .prepare(`SELECT DISTINCT gear_id AS gearId FROM activities WHERE gear_id IS NOT NULL AND gear_id != ''`)
+    .all()
+    .map((row) => row.gearId);
 }
 
 export function getMaxObservedHeartRate() {
@@ -176,6 +211,13 @@ export function getZoneTotalsBySport({ sport, startDate, endDate } = {}) {
     .get(...values);
 
   return row;
+}
+
+export function getActivitiesByGearId(gearId) {
+  return db
+    .prepare(`SELECT * FROM activities WHERE gear_id = ? ORDER BY start_date ASC`)
+    .all(gearId)
+    .map(fromRow);
 }
 
 export function queryActivities({ sport, startDate, endDate, limit = 5000 } = {}) {

@@ -53,6 +53,26 @@ export function initSchema(db) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_activities_start_date ON activities(start_date)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_activities_sport_type ON activities(sport_type)`);
 
+  // Migration: capture the Strava gear a workout was logged with (added later).
+  const activityColumns = db.prepare(`PRAGMA table_info(activities)`).all();
+  if (!activityColumns.some((col) => col.name === "gear_id")) {
+    db.exec(`ALTER TABLE activities ADD COLUMN gear_id TEXT`);
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS gear (
+      id TEXT PRIMARY KEY,
+      type TEXT,
+      name TEXT,
+      brand TEXT,
+      model TEXT,
+      distance_m REAL DEFAULT 0,
+      is_primary INTEGER DEFAULT 0,
+      retired INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS activity_zone_seconds (
       activity_id TEXT PRIMARY KEY,

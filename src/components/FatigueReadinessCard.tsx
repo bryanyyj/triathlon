@@ -2,7 +2,14 @@ import { useMemo } from "react";
 import type { Activity, FatigueReadiness } from "../types";
 import { buildDailyLoad } from "../lib/calculations";
 import { DAILY_LOAD_CAP, intensityColor } from "../lib/intensityColor";
-import { buildFatigueExplanation, getAcwr, ZONE_META, type FatigueZone } from "../lib/fatigueExplanation";
+import {
+  buildFatigueExplanation,
+  explainFatigueScore,
+  explainReadinessScore,
+  getAcwr,
+  ZONE_META,
+  type FatigueZone,
+} from "../lib/fatigueExplanation";
 
 function scoreColor(score: number, invert = false): string {
   const good = invert ? score < 40 : score > 60;
@@ -12,7 +19,7 @@ function scoreColor(score: number, invert = false): string {
   return "#ff9f43";
 }
 
-function Gauge({ label, value, invert }: { label: string; value: number; invert?: boolean }) {
+function Gauge({ label, value, invert, description }: { label: string; value: number; invert?: boolean; description: string }) {
   const color = scoreColor(value, invert);
   return (
     <div className="rounded-2xl bg-tri-soft border border-white/10 p-4">
@@ -23,6 +30,7 @@ function Gauge({ label, value, invert }: { label: string; value: number; invert?
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
         <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
       </div>
+      <p className="mt-3 text-xs leading-relaxed text-white/50">{description}</p>
     </div>
   );
 }
@@ -62,40 +70,73 @@ function AcwrGauge({ acwr, zone }: { acwr: number; zone: FatigueZone }) {
   );
 }
 
-function DailyLoadStrip({ activities }: { activities: Activity[] }) {
+function DailyLoadStrip({ activities, rangeDays }: { activities: Activity[]; rangeDays: number | null }) {
   const dailyLoad = useMemo(() => buildDailyLoad(activities), [activities]);
 
   const days = useMemo(() => {
+    // For "all time" (null), span from the earliest activity to today; otherwise
+    // walk back `rangeDays` from today so the strip mirrors the top filter.
+    let count = rangeDays ?? 0;
+    if (count <= 0) {
+      const keys = [...dailyLoad.keys()].sort();
+      if (keys.length) {
+        const earliest = new Date(keys[0]);
+        count = Math.round((Date.now() - earliest.getTime()) / 86_400_000) + 1;
+      }
+      count = Math.max(count, 7);
+    }
+    count = Math.min(count, 371); // safety cap (~1yr) so we never render thousands of cells
+
     const result: { key: string; label: string; load: number }[] = [];
-    for (let i = 6; i >= 0; i -= 1) {
+    for (let i = count - 1; i >= 0; i -= 1) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       result.push({ key, label: d.toLocaleDateString(undefined, { weekday: "narrow" }), load: dailyLoad.get(key) || 0 });
     }
     return result;
-  }, [dailyLoad]);
+  }, [dailyLoad, rangeDays]);
+
+  // Weekday letters only stay legible for short spans; past that it's a heatmap.
+  const showLabels = days.length <= 14;
 
   return (
     <div>
-      <p className="mb-1.5 text-xs uppercase tracking-widest text-white/40">Last 7 Days</p>
-      <div className="flex gap-1.5">
+      <p className="mb-1.5 text-xs uppercase tracking-widest text-white/40">Last {days.length} Days</p>
+      <div
+        className="grid gap-1.5"
+        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${showLabels ? 24 : 12}px, 1fr))` }}
+      >
         {days.map((day) => (
-          <div key={day.key} className="flex-1 text-center">
+          <div key={day.key} className="text-center">
             <div
               title={`${day.key}: ${day.load > 0 ? `${Math.round(day.load)} load` : "Rest day"}`}
               className="aspect-square rounded-md"
               style={{ backgroundColor: intensityColor(day.load / DAILY_LOAD_CAP) }}
             />
-            <span className="mt-1 block text-[9px] text-white/30">{day.label}</span>
+            {showLabels && <span className="mt-1 block text-[9px] text-white/30">{day.label}</span>}
           </div>
         ))}
       </div>
+      {!showLabels && (
+        <div className="mt-1.5 flex justify-between text-[9px] text-white/30">
+          <span>{days[0].key}</span>
+          <span>{days[days.length - 1].key}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-export function FatigueReadinessCard({ data, activities }: { data: FatigueReadiness; activities: Activity[] }) {
+export function FatigueReadinessCard({
+  data,
+  activities,
+  rangeDays,
+}: {
+  data: FatigueReadiness;
+  activities: Activity[];
+  rangeDays: number | null;
+}) {
   const acwr = getAcwr(data);
   const explanation = buildFatigueExplanation(data);
 
@@ -107,8 +148,8 @@ export function FatigueReadinessCard({ data, activities }: { data: FatigueReadin
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Gauge label="Fatigue Score" value={data.fatigueScore} invert />
-        <Gauge label="Readiness Score" value={data.readinessScore} />
+        <Gauge label="Fatigue Score" value={data.fatigueScore} invert description={explainFatigueScore(data)} />
+        <Gauge label="Readiness Score" value={data.readinessScore} description={explainReadinessScore(data)} />
       </div>
 
       <div className="mt-4 rounded-2xl bg-tri-soft border border-white/10 p-4">
@@ -118,7 +159,7 @@ export function FatigueReadinessCard({ data, activities }: { data: FatigueReadin
       </div>
 
       <div className="mt-4 rounded-2xl bg-tri-soft border border-white/10 p-4">
-        <DailyLoadStrip activities={activities} />
+        <DailyLoadStrip activities={activities} rangeDays={rangeDays} />
       </div>
     </section>
   );

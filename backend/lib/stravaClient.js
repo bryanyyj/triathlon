@@ -6,6 +6,8 @@ dotenv.config();
 const TOKEN_URL = "https://www.strava.com/oauth/token";
 const ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities";
 const ACTIVITY_BASE_URL = "https://www.strava.com/api/v3/activities";
+const ATHLETE_URL = "https://www.strava.com/api/v3/athlete";
+const GEAR_BASE_URL = "https://www.strava.com/api/v3/gear";
 const PER_PAGE = 200;
 const MAX_PAGES = 20;
 
@@ -153,6 +155,35 @@ export async function fetchStravaActivitiesSince(afterEpochSeconds) {
 }
 
 export class StravaRateLimitError extends Error {}
+
+// The authenticated athlete, including their current `bikes` and `shoes` gear arrays.
+export async function fetchStravaAthlete() {
+  const accessToken = await getAccessToken();
+  const response = await fetch(ATHLETE_URL, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+  if (response.status === 429) throw new StravaRateLimitError("Strava rate limit reached");
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Strava athlete request failed (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
+
+// Detailed gear (brand, model, lifetime distance, retired flag). Null if not found.
+export async function fetchStravaGearById(gearId) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(`${GEAR_BASE_URL}/${gearId}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+  if (response.status === 404) return null;
+  if (response.status === 429) throw new StravaRateLimitError("Strava rate limit reached");
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Strava gear request failed (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
 
 // Returns { time: number[], heartrate: number[] } or null if the activity has no HR stream.
 export async function fetchActivityHeartRateStream(activityId) {
