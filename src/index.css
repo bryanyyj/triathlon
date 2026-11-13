@@ -12,6 +12,83 @@ body {
   }
 }
 
+/* Markdown replies in the coach chat. */
+.coach-text {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.coach-text > :first-child {
+  margin-top: 0;
+}
+.coach-text > :last-child {
+  margin-bottom: 0;
+}
+.coach-text p {
+  margin: 0 0 0.8em;
+}
+.coach-text h3,
+.coach-text h4,
+.coach-text h5,
+.coach-text h6 {
+  margin: 1.2em 0 0.5em;
+  font-weight: 700;
+  color: #fff;
+}
+.coach-text h3 {
+  color: theme("colors.tri-purple");
+}
+.coach-text ul,
+.coach-text ol {
+  margin: 0.4em 0 0.9em;
+  padding-left: 1.3em;
+}
+.coach-text ul {
+  list-style: disc;
+}
+.coach-text ol {
+  list-style: decimal;
+}
+.coach-text li {
+  margin: 0.35em 0;
+}
+.coach-text strong {
+  font-weight: 700;
+  color: #fff;
+}
+.coach-text a {
+  color: theme("colors.tri-blue");
+  text-decoration: underline;
+}
+.coach-text code {
+  border-radius: 6px;
+  background: theme("colors.tri-soft");
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+.coach-text hr {
+  margin: 1em 0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.coach-table {
+  margin: 0.8em 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.coach-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+.coach-table th,
+.coach-table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 8px;
+  text-align: left;
+}
+.coach-table th {
+  background: theme("colors.tri-soft");
+}
+
 /* Slim horizontal scrollbar for scrolling card rows (e.g. workout history). */
 .tri-scroll {
   scrollbar-width: thin;

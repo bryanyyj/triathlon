@@ -52,7 +52,11 @@ function getWeekKey(dateString) {
   const day = monday.getDay();
   const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
   monday.setDate(diff);
-  return monday.toISOString().slice(0, 10);
+  // Format from local parts: toISOString() would shift to UTC and split weeks
+  // for early-morning workouts in timezones ahead of UTC.
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
+  return `${monday.getFullYear()}-${month}-${dayOfMonth}`;
 }
 
 function estimateIntensityFactor(activity) {

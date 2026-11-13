@@ -115,8 +115,17 @@ export function getDistinctGearIds() {
     .map((row) => row.gearId);
 }
 
+// A max this far above the activity's own average is a sensor spike (e.g. a strap
+// reading 250+ on an easy ride), not a real effort; real hard efforts sit 20–50 bpm above.
+const MAX_HR_SPIKE_GAP = 70;
+
 export function getMaxObservedHeartRate() {
-  const row = db.prepare(`SELECT MAX(max_hr) AS maxHr FROM activities`).get();
+  const configured = Number(process.env.MAX_HR);
+  if (configured > 0) return configured;
+
+  const row = db
+    .prepare(`SELECT MAX(max_hr) AS maxHr FROM activities WHERE average_hr IS NOT NULL AND max_hr - average_hr <= ?`)
+    .get(MAX_HR_SPIKE_GAP);
   return row?.maxHr || null;
 }
 
@@ -170,6 +179,27 @@ export function getZoneBackfillProgress() {
   const total = db.prepare(`SELECT COUNT(*) AS c FROM activities`).get().c;
   const withZones = db.prepare(`SELECT COUNT(*) AS c FROM activity_zone_seconds`).get().c;
   return { total, withZones, missing: total - withZones };
+}
+
+// Per-activity HR-zone seconds, keyed by activity id. Only activities with HR data.
+export function getActivityZoneMap() {
+  const rows = db
+    .prepare(
+      `
+      SELECT activity_id AS activityId,
+        z1_recovery_sec AS z1RecoverySec,
+        z2_endurance_sec AS z2EnduranceSec,
+        z3_tempo_sec AS z3TempoSec,
+        z4_threshold_sec AS z4ThresholdSec,
+        z5_vo2max_sec AS z5Vo2maxSec,
+        z6_anaerobic_sec AS z6AnaerobicSec
+      FROM activity_zone_seconds
+      WHERE has_hr_data = 1
+      `
+    )
+    .all();
+
+  return Object.fromEntries(rows.map(({ activityId, ...zones }) => [activityId, zones]));
 }
 
 export function getZoneTotalsBySport({ sport, startDate, endDate } = {}) {

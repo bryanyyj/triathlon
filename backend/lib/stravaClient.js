@@ -185,6 +185,26 @@ export async function fetchStravaGearById(gearId) {
   return response.json();
 }
 
+// Returns Strava's streams keyed by type ({ time: { data }, watts: { data }, ... }), or null on 404.
+export async function fetchActivityStreams(activityId, keys) {
+  const accessToken = await getAccessToken();
+  const url = new URL(`${ACTIVITY_BASE_URL}/${activityId}/streams`);
+  url.searchParams.set("keys", keys.join(","));
+  url.searchParams.set("key_by_type", "true");
+
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+  if (response.status === 404) return null;
+  if (response.status === 429) throw new StravaRateLimitError("Strava rate limit reached");
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Strava streams request failed (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
+
 // Returns { time: number[], heartrate: number[] } or null if the activity has no HR stream.
 export async function fetchActivityHeartRateStream(activityId) {
   const accessToken = await getAccessToken();

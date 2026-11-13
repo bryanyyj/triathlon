@@ -87,6 +87,25 @@ export function initSchema(db) {
     )
   `);
 
+  // Small JSON settings by key (e.g. "training_week").
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Downsampled effort profile per activity (JSON), for History's bar charts.
+  // profile is NULL when Strava had no usable streams, so it isn't fetched again.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS activity_profiles (
+      activity_id TEXT PRIMARY KEY,
+      profile TEXT,
+      fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS strava_auth (
       id INTEGER PRIMARY KEY CHECK (id = 1),

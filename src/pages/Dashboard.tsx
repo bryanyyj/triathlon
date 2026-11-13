@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
-import { Header } from "../components/Header";
+import { Header, type DashboardTab } from "../components/Header";
+import { TrainingWeek } from "./TrainingWeek";
 import { UpcomingRaces } from "../components/UpcomingRaces";
 import { Filters, quickFilterToDays, quickFilterToRange } from "../components/Filters";
 import { SummaryMetrics } from "../components/SummaryMetrics";
 import { WeeklyVolumeChart } from "../components/WeeklyVolumeChart";
 import { WeeklyTssChart } from "../components/WeeklyTssChart";
 import { TrainingCalendar } from "../components/TrainingCalendar";
-import { HrZonesBySportChart } from "../components/HrZonesBySportChart";
+import { ActivityHistory } from "../components/ActivityHistory";
 import { SportAnalytics } from "../components/SportAnalytics";
 import { PlannedWorkouts } from "../components/PlannedWorkouts";
 import { WorkoutHistory } from "../components/WorkoutHistory";
 import { FatigueReadinessCard } from "../components/FatigueReadinessCard";
 import { GearCard } from "../components/GearCard";
 import { AICoachPanel } from "../components/AICoachPanel";
+import { CoachBubble } from "../components/CoachBubble";
 import {
   connectStrava,
   createPlannedWorkout,
@@ -20,6 +22,7 @@ import {
   deleteRace,
   updateRace,
   getActivities,
+  getActivityZones,
   getFatigueReadiness,
   getGear,
   getHrZones,
@@ -29,7 +32,8 @@ import {
   syncStrava,
 } from "../lib/api";
 import { buildDashboardSummary, buildWeeklyTss, buildWeeklyVolume } from "../lib/calculations";
-import type { Activity, FatigueReadiness, Gear, HrZonesBySport, PlannedWorkout, QuickFilter, Race, SportFilter } from "../types";
+import { useCoachChat } from "../lib/coachChat";
+import type { Activity, FatigueReadiness, Gear, HrZonesBySport, PlannedWorkout, QuickFilter, Race, SportFilter, ZoneSeconds } from "../types";
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,17 @@ export function Dashboard() {
   const [zones, setZones] = useState<HrZonesBySport | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [activityZones, setActivityZones] = useState<Record<string, ZoneSeconds>>({});
+  const coachChat = useCoachChat();
+  const [coachOpen, setCoachOpen] = useState(false);
+  // The tab lives in the URL hash so a refresh stays on it.
+  const [tab, setTabState] = useState<DashboardTab>(() =>
+    window.location.hash === "#training-week" ? "training-week" : "dashboard"
+  );
+  const setTab = (next: DashboardTab) => {
+    setTabState(next);
+    window.history.replaceState({}, "", next === "dashboard" ? window.location.pathname : `#${next}`);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -101,6 +116,8 @@ export function Dashboard() {
           getStravaStatus(),
           getGear().catch(() => []),
         ]);
+        // Zone bars are decoration for History; don't fail the dashboard over them.
+        getActivityZones().then(setActivityZones).catch(() => {});
 
         setAllActivities(activities);
         setRaces(raceList);
@@ -157,6 +174,22 @@ export function Dashboard() {
     setPlannedWorkouts((prev) => [...prev, created]);
   };
 
+  // The coach writes planned workouts on the backend, so re-read them after it replies.
+  const reloadPlannedWorkouts = async () => {
+    try {
+      setPlannedWorkouts(await getPlannedWorkouts());
+    } catch {
+      // Keep showing the current list; the next load will catch up.
+    }
+  };
+
+  // History's Review button: open the coach and send the activity's details.
+  const handleReviewActivity = async (text: string, display: string) => {
+    setCoachOpen(true);
+    await coachChat.send(text, display);
+    reloadPlannedWorkouts();
+  };
+
   // Poll the backend until the background HR-zone + gear work finishes, then
   // refresh the pieces that work produced.
   const pollBackgroundSync = (range: { startDate?: string; endDate?: string }) => {
@@ -167,9 +200,14 @@ export function Dashboard() {
         const status = await getStravaStatus();
         if (!status.syncing || attempts > 45) {
           clearInterval(poll);
-          const [zonesBySport, gearList] = await Promise.all([getHrZones(range), getGear().catch(() => [])]);
+          const [zonesBySport, gearList, zoneMap] = await Promise.all([
+            getHrZones(range),
+            getGear().catch(() => []),
+            getActivityZones().catch(() => null),
+          ]);
           setZones(zonesBySport);
           setGear(gearList);
+          if (zoneMap) setActivityZones(zoneMap);
           setSyncMessage("Sync complete — HR zones and gear are up to date.");
           setTimeout(() => setSyncMessage(null), 4000);
         }
@@ -228,6 +266,8 @@ export function Dashboard() {
     <div className="min-h-screen bg-tri-bg px-6 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
         <Header
+          tab={tab}
+          onTabChange={setTab}
           stravaConnected={stravaConnected}
           athleteName={athleteName}
           onConnectStrava={connectStrava}
@@ -242,33 +282,46 @@ export function Dashboard() {
           </div>
         )}
 
-        <UpcomingRaces races={races} onAddRace={handleAddRace} onEditRace={handleEditRace} onDeleteRace={handleDeleteRace} />
+        {tab === "training-week" ? (
+          <TrainingWeek />
+        ) : (
+          <>
+            <UpcomingRaces races={races} onAddRace={handleAddRace} onEditRace={handleEditRace} onDeleteRace={handleDeleteRace} />
 
-        <Filters sport={sport} onSportChange={setSport} quickFilter={quickFilter} onQuickFilterChange={setQuickFilter} />
+            <Filters sport={sport} onSportChange={setSport} quickFilter={quickFilter} onQuickFilterChange={setQuickFilter} />
 
-        <SummaryMetrics summary={summary} />
+            <SummaryMetrics summary={summary} />
 
-        <WeeklyVolumeChart data={weeklyVolume} />
+            <WeeklyVolumeChart data={weeklyVolume} />
 
-        <WeeklyTssChart data={weeklyTss} />
+            <WeeklyTssChart data={weeklyTss} showValues={quickFilter === "7d" || quickFilter === "30d" || quickFilter === "90d"} />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <TrainingCalendar activities={allActivities} />
-          <HrZonesBySportChart zones={zones} />
-        </div>
+            <div className="grid items-start gap-6 md:grid-cols-2">
+              <TrainingCalendar activities={allActivities} plannedWorkouts={plannedWorkouts} />
+              <ActivityHistory
+                activities={allActivities}
+                zones={activityZones}
+                onReview={handleReviewActivity}
+                reviewBusy={coachChat.busy}
+              />
+            </div>
 
-        <SportAnalytics activities={filteredActivities} zones={zones} />
+            <SportAnalytics activities={filteredActivities} zones={zones} />
 
-        <WorkoutHistory activities={filteredActivities} />
+            <WorkoutHistory activities={filteredActivities} />
 
-        <GearCard gear={gear} />
+            <GearCard gear={gear} />
 
-        <PlannedWorkouts workouts={plannedWorkouts} activities={allActivities} onAdd={handleAddPlannedWorkout} />
+            <PlannedWorkouts workouts={plannedWorkouts} activities={allActivities} onAdd={handleAddPlannedWorkout} />
 
-        {fatigue && <FatigueReadinessCard data={fatigue} activities={filteredActivities} rangeDays={rangeDays} />}
+            {fatigue && <FatigueReadinessCard data={fatigue} activities={filteredActivities} rangeDays={rangeDays} />}
 
-        <AICoachPanel />
+            <AICoachPanel />
+          </>
+        )}
       </div>
+
+      <CoachBubble chat={coachChat} open={coachOpen} setOpen={setCoachOpen} onPlanChanged={reloadPlannedWorkouts} />
     </div>
   );
 }

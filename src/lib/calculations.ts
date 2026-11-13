@@ -41,7 +41,11 @@ function getWeekKey(dateString: string): string {
   const day = date.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
   const sunday = new Date(date);
   sunday.setDate(date.getDate() + (day === 0 ? 0 : 7 - day));
-  return sunday.toISOString().slice(0, 10);
+  // Format from local parts: toISOString() would shift to UTC and, for early-morning
+  // workouts in timezones ahead of UTC, roll the key back to Saturday.
+  const month = String(sunday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(sunday.getDate()).padStart(2, "0");
+  return `${sunday.getFullYear()}-${month}-${dayOfMonth}`;
 }
 
 export function buildWeeklyVolume(activities: Activity[]): WeeklyVolumePoint[] {
@@ -79,20 +83,34 @@ export function buildDailyLoad(activities: Activity[]): Map<string, number> {
   return map;
 }
 
-export type WeeklyTssPoint = { week: string; tss: number };
+export type WeeklyTssPoint = { week: string; tss: number; hours: number };
 
 export function buildWeeklyTss(activities: Activity[]): WeeklyTssPoint[] {
-  const map = new Map<string, number>();
+  const map = new Map<string, { tss: number; hours: number }>();
 
   for (const activity of activities) {
     if (!["swim", "bike", "run"].includes(activity.sportType)) continue;
     const week = getWeekKey(activity.startDate);
-    map.set(week, (map.get(week) || 0) + estimateActivityLoad(activity));
+    const totals = map.get(week) || { tss: 0, hours: 0 };
+    totals.tss += estimateActivityLoad(activity);
+    totals.hours += activity.movingTimeSeconds / 3600;
+    map.set(week, totals);
   }
 
-  return Array.from(map.entries())
-    .map(([week, tss]) => ({ week, tss }))
-    .sort((a, b) => a.week.localeCompare(b.week));
+  const weeks = Array.from(map.keys()).sort();
+  if (!weeks.length) return [];
+
+  // Fill weeks with no training as 0 so the trend line dips instead of bridging rest weeks.
+  const points: WeeklyTssPoint[] = [];
+  const [y, m, d] = weeks[0].split("-").map(Number);
+  const cursor = new Date(y, m - 1, d);
+  const last = weeks[weeks.length - 1];
+  for (let key = weeks[0]; key <= last; ) {
+    points.push({ week: key, tss: map.get(key)?.tss || 0, hours: map.get(key)?.hours || 0 });
+    cursor.setDate(cursor.getDate() + 7);
+    key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+  }
+  return points;
 }
 
 function estimateIntensityFactor(activity: Activity): number {

@@ -10,7 +10,7 @@ const ZONE_KEYS = [
   "z6_anaerobic_sec",
 ];
 
-function zoneIndexForHeartRate(hr, maxHr) {
+export function zoneIndexForHeartRate(hr, maxHr) {
   const ratio = hr / maxHr;
   for (let i = 0; i < ZONE_UPPER_BOUNDS.length; i += 1) {
     if (ratio < ZONE_UPPER_BOUNDS[i]) return i;
