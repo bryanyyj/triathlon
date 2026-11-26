@@ -7,3 +7,4 @@ backend/data/
 *.sqlite
 *.sqlite3
 *.db
+docs/
