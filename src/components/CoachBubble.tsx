@@ -9,6 +9,8 @@ type CoachBubbleProps = {
   open: boolean;
   setOpen: (update: boolean | ((open: boolean) => boolean)) => void;
   onPlanChanged: () => void;
+  // Set on pages that open the coach from their own button.
+  hideLauncher?: boolean;
 };
 
 // Floating chat bubble (bottom right). onPlanChanged fires after each reply so the
@@ -23,7 +25,7 @@ function readMaximized(): boolean {
   }
 }
 
-export function CoachBubble({ chat, open, setOpen, onPlanChanged }: CoachBubbleProps) {
+export function CoachBubble({ chat, open, setOpen, onPlanChanged, hideLauncher }: CoachBubbleProps) {
   // Remembered per browser, so long-reply readers get the big view every time.
   const [maximized, setMaximizedState] = useState(readMaximized);
   const setMaximized = (value: boolean) => {
@@ -101,6 +103,7 @@ export function CoachBubble({ chat, open, setOpen, onPlanChanged }: CoachBubbleP
         </div>
       )}
 
+      {!hideLauncher && (
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close coach" : "Open coach"}
@@ -112,6 +115,7 @@ export function CoachBubble({ chat, open, setOpen, onPlanChanged }: CoachBubbleP
           <path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H9l-4.5 3.5V17H4A1.5 1.5 0 0 1 2.5 15.5V7A1.5 1.5 0 0 1 4 5.5Z" />
         </svg>
       </button>
+      )}
     </>
   );
 }

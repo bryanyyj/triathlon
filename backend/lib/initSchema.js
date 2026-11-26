@@ -87,6 +87,15 @@ export function initSchema(db) {
     )
   `);
 
+  // One row per local date of Garmin sleep/health values (JSON).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS garmin_daily (
+      date TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Small JSON settings by key (e.g. "training_week").
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (

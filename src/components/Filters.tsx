@@ -1,13 +1,13 @@
 import type { QuickFilter, SportFilter } from "../types";
 
-const SPORTS: { value: SportFilter; label: string }[] = [
+export const SPORTS: { value: SportFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "swim", label: "Swim" },
   { value: "bike", label: "Bike" },
   { value: "run", label: "Run" },
 ];
 
-const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
+export const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: "7d", label: "7 days" },
   { value: "30d", label: "30 days" },
   { value: "90d", label: "90 days" },

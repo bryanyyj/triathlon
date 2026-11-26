@@ -3,6 +3,8 @@ import type {
   DashboardSummary,
   FatigueReadiness,
   Gear,
+  GarminDay,
+  GarminStatus,
   GearAnalytics,
   HrZonesBySport,
   PlannedWorkout,
@@ -174,6 +176,18 @@ export async function updatePlannedWorkout(id: string, updates: Partial<PlannedW
 
 export async function deletePlannedWorkout(id: string): Promise<void> {
   return apiDelete(`/api/planned-workouts/${id}`);
+}
+
+export async function getGarminStatus(): Promise<GarminStatus> {
+  return apiGet<GarminStatus>("/api/garmin/status");
+}
+
+export async function syncGarmin(days: number): Promise<GarminStatus> {
+  return apiPost<GarminStatus>("/api/garmin/sync", { days });
+}
+
+export async function getGarminDays(): Promise<GarminDay[]> {
+  return apiGet<GarminDay[]>("/api/garmin/daily");
 }
 
 export type AiCoachResponse = {

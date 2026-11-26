@@ -1,6 +1,11 @@
+// Planned dates are the athlete's local calendar days; activity start times are UTC.
+function localDay(startDate) {
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(startDate));
+}
+
 export function matchWorkout(planned, activities) {
   const sameDaySameSport = activities.filter(
-    (activity) => activity.sportType === planned.sportType && activity.startDate.slice(0, 10) === planned.date
+    (activity) => activity.sportType === planned.sportType && localDay(activity.startDate) === planned.date
   );
 
   if (!sameDaySameSport.length) return null;

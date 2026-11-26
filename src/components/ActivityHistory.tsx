@@ -302,7 +302,7 @@ export function ActivityHistory({ activities, zones, onReview, reviewBusy }: Act
   };
 
   return (
-    <section className="flex flex-col rounded-3xl bg-tri-card border border-white/10 p-6">
+    <section className="flex flex-col rounded-2xl bg-tri-card border border-white/10 p-4 lg:h-full lg:min-h-0">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-white">History</h2>
         <p className="text-sm text-white/50">Every workout, week by week · bar height is effort (power, or speed), color is HR zone</p>
@@ -311,7 +311,7 @@ export function ActivityHistory({ activities, zones, onReview, reviewBusy }: Act
       {weeks.length === 0 ? (
         <p className="text-sm text-white/50">No activities yet.</p>
       ) : (
-        <div ref={scrollRef} className="tri-scroll -mr-2 max-h-[34rem] space-y-1 overflow-y-auto pr-2">
+        <div ref={scrollRef} className="tri-scroll -mr-2 max-h-[34rem] space-y-1 overflow-y-auto pr-2 lg:max-h-none lg:min-h-0 lg:flex-1">
           {visibleWeeks < weeks.length && (
             <button
               type="button"

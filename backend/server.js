@@ -11,6 +11,7 @@ import { aiCoachRouter } from "./routes/aiCoach.js";
 import { stravaRouter } from "./routes/strava.js";
 import { gearRouter } from "./routes/gear.js";
 import { coachRouter } from "./routes/coach.js";
+import { garminRouter } from "./routes/garmin.js";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use(aiCoachRouter);
 app.use(stravaRouter);
 app.use(gearRouter);
 app.use(coachRouter);
+app.use(garminRouter);
 
 // Strava is only ever called on initial connect or when the user clicks "Re-pull" in
 // the UI (POST /api/strava/sync) — no polling, to stay well under Strava's rate limit.

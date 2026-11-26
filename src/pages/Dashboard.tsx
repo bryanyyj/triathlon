@@ -1,24 +1,23 @@
 import { useEffect, useState } from "react";
-import { Header, type DashboardTab } from "../components/Header";
-import { TrainingWeek } from "./TrainingWeek";
-import { UpcomingRaces } from "../components/UpcomingRaces";
-import { Filters, quickFilterToDays, quickFilterToRange } from "../components/Filters";
-import { SummaryMetrics } from "../components/SummaryMetrics";
-import { WeeklyVolumeChart } from "../components/WeeklyVolumeChart";
-import { WeeklyTssChart } from "../components/WeeklyTssChart";
-import { TrainingCalendar } from "../components/TrainingCalendar";
+import { HeaderActions } from "../components/Header";
+import { PAGES, Sidebar, type PageId } from "../components/Sidebar";
+import { PageShell, Segmented } from "../components/Layout";
+import { CalendarPage } from "./CalendarPage";
+import { OverviewPage } from "./OverviewPage";
+import { HistoryView, LoadView, PerformanceView } from "./TrainingPage";
+import { RECOVERY_TABS, RecoveryPage, type RecoveryTab } from "./RecoveryPage";
+import { PLAN_TABS, PlanPage, type PlanTab } from "./PlanPage";
+import { QUICK_FILTERS, SPORTS, quickFilterToRange } from "../components/Filters";
 import { ActivityHistory } from "../components/ActivityHistory";
-import { SportAnalytics } from "../components/SportAnalytics";
-import { PlannedWorkouts } from "../components/PlannedWorkouts";
-import { WorkoutHistory } from "../components/WorkoutHistory";
-import { FatigueReadinessCard } from "../components/FatigueReadinessCard";
-import { GearCard } from "../components/GearCard";
-import { AICoachPanel } from "../components/AICoachPanel";
 import { CoachBubble } from "../components/CoachBubble";
+import { useGarmin } from "../lib/useGarmin";
+import { buildFitnessSeries } from "../lib/fitness";
+import type { TriSport } from "../components/charts/TrainingCharts";
 import {
   connectStrava,
   createPlannedWorkout,
   createRace,
+  deletePlannedWorkout,
   deleteRace,
   updateRace,
   getActivities,
@@ -31,9 +30,46 @@ import {
   getStravaStatus,
   syncStrava,
 } from "../lib/api";
-import { buildDashboardSummary, buildWeeklyTss, buildWeeklyVolume } from "../lib/calculations";
 import { useCoachChat } from "../lib/coachChat";
 import type { Activity, FatigueReadiness, Gear, HrZonesBySport, PlannedWorkout, QuickFilter, Race, SportFilter, ZoneSeconds } from "../types";
+
+const TRAINING_TABS = [
+  { value: "load", label: "Load" },
+  { value: "performance", label: "Performance" },
+  { value: "history", label: "History" },
+] as const;
+
+const RECOVERY_RANGES = [7, 30, 90, 180].map((days) => ({ value: days, label: `${days} days` }));
+const SPORT_TABS: { value: TriSport; label: string }[] = [
+  { value: "run", label: "Run" },
+  { value: "bike", label: "Bike" },
+  { value: "swim", label: "Swim" },
+];
+
+const TABS: Partial<Record<PageId, readonly { value: string }[]>> = { training: TRAINING_TABS, recovery: RECOVERY_TABS, plan: PLAN_TABS };
+
+// Addresses of pages that have since been combined, so old bookmarks still land.
+const MOVED: Record<string, string> = {
+  fitness: "training/load",
+  activities: "training/history",
+  sleep: "recovery/sleep",
+  health: "recovery/body",
+  races: "plan/races",
+  gear: "plan/gear",
+  "training-week": "plan/week",
+};
+
+type Route = { page: PageId; tab: string };
+
+// The page and tab live in the URL hash so a refresh (and the back button) stays put.
+function routeFromHash(): Route {
+  const raw = window.location.hash.slice(1);
+  const [id, wanted] = (MOVED[raw] ?? raw).split("/");
+  const page = PAGES.find((p) => p.id === id)?.id ?? "overview";
+  const tabs = TABS[page];
+  const tab = tabs?.find((t) => t.value === wanted)?.value ?? tabs?.[0].value ?? "";
+  return { page, tab };
+}
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -54,14 +90,16 @@ export function Dashboard() {
   const [activityZones, setActivityZones] = useState<Record<string, ZoneSeconds>>({});
   const coachChat = useCoachChat();
   const [coachOpen, setCoachOpen] = useState(false);
-  // The tab lives in the URL hash so a refresh stays on it.
-  const [tab, setTabState] = useState<DashboardTab>(() =>
-    window.location.hash === "#training-week" ? "training-week" : "dashboard"
-  );
-  const setTab = (next: DashboardTab) => {
-    setTabState(next);
-    window.history.replaceState({}, "", next === "dashboard" ? window.location.pathname : `#${next}`);
-  };
+  const [{ page, tab }, setRoute] = useState<Route>(routeFromHash);
+  const [recoveryRange, setRecoveryRange] = useState(30);
+  const [performanceSport, setPerformanceSport] = useState<TriSport>("run");
+  const garmin = useGarmin();
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(routeFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -101,7 +139,7 @@ export function Dashboard() {
           }
         }, 3000);
       }
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", window.location.pathname + window.location.hash);
     }
   }, []);
 
@@ -172,6 +210,15 @@ export function Dashboard() {
   const handleAddPlannedWorkout = async (workout: Partial<PlannedWorkout>) => {
     const created = await createPlannedWorkout(workout);
     setPlannedWorkouts((prev) => [...prev, created]);
+  };
+
+  const handleDeletePlannedWorkout = async (id: string) => {
+    try {
+      await deletePlannedWorkout(id);
+      setPlannedWorkouts((prev) => prev.filter((w) => w.id !== id));
+    } catch {
+      setError("Failed to delete the planned workout.");
+    }
   };
 
   // The coach writes planned workouts on the backend, so re-read them after it replies.
@@ -257,71 +304,130 @@ export function Dashboard() {
     );
   }
 
-  const summary = buildDashboardSummary(filteredActivities);
-  const weeklyVolume = buildWeeklyVolume(filteredActivities);
-  const weeklyTss = buildWeeklyTss(filteredActivities);
-  const rangeDays = quickFilterToDays(quickFilter);
+  const isCalendar = page === "calendar";
+  const title = PAGES.find((p) => p.id === page)!.label;
+  const fitness = buildFitnessSeries(allActivities);
+  const errorBanner = error && (
+    <div className="shrink-0 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">{error}</div>
+  );
+
+  const refreshAll = () => {
+    if (stravaConnected) void handleSync();
+    if (garmin.status?.signedIn) void garmin.sync(30);
+  };
+
+  const openTab = (next: string) => {
+    window.location.hash = `${page}/${next}`;
+  };
+  const tabs = TABS[page] && <Segmented label={`${title} sections`} options={TABS[page] as readonly { value: string; label: string }[]} value={tab} onChange={openTab} />;
+  const range = <Segmented label="Date range" options={QUICK_FILTERS} value={quickFilter} onChange={setQuickFilter} />;
+
+  const controls =
+    page === "training" && tab !== "history" ? (
+      <>
+        {tab === "load" ? (
+          <Segmented label="Sport" options={SPORTS} value={sport} onChange={setSport} />
+        ) : (
+          <Segmented label="Sport" options={SPORT_TABS} value={performanceSport} onChange={setPerformanceSport} />
+        )}
+        {range}
+      </>
+    ) : page === "recovery" ? (
+      <>
+        <Segmented label="Date range" options={RECOVERY_RANGES} value={recoveryRange} onChange={setRecoveryRange} />
+        {garmin.status?.signedIn && (
+          <button
+            type="button"
+            onClick={() => void garmin.sync(Math.max(30, recoveryRange))}
+            disabled={garmin.status.syncing}
+            className="whitespace-nowrap rounded-xl bg-gradient-to-r from-tri-purple to-tri-pink px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {garmin.status.syncing ? `Syncing ${garmin.status.done}/${garmin.status.total}…` : "↻ Garmin"}
+          </button>
+        )}
+      </>
+    ) : null;
 
   return (
-    <div className="min-h-screen bg-tri-bg px-6 py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <Header
-          tab={tab}
-          onTabChange={setTab}
-          stravaConnected={stravaConnected}
-          athleteName={athleteName}
-          onConnectStrava={connectStrava}
-          onSync={handleSync}
-          syncing={syncing}
-          syncMessage={syncMessage}
-        />
+    <div className="flex h-screen flex-col bg-tri-bg md:flex-row">
+      <Sidebar page={page} />
 
-        {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </div>
-        )}
-
-        {tab === "training-week" ? (
-          <TrainingWeek />
-        ) : (
-          <>
-            <UpcomingRaces races={races} onAddRace={handleAddRace} onEditRace={handleEditRace} onDeleteRace={handleDeleteRace} />
-
-            <Filters sport={sport} onSportChange={setSport} quickFilter={quickFilter} onQuickFilterChange={setQuickFilter} />
-
-            <SummaryMetrics summary={summary} />
-
-            <WeeklyVolumeChart data={weeklyVolume} />
-
-            <WeeklyTssChart data={weeklyTss} showValues={quickFilter === "7d" || quickFilter === "30d" || quickFilter === "90d"} />
-
-            <div className="grid items-start gap-6 md:grid-cols-2">
-              <TrainingCalendar activities={allActivities} plannedWorkouts={plannedWorkouts} />
-              <ActivityHistory
+      <main key={page} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        {isCalendar ? (
+          <div className="flex h-full flex-col">
+            {error && <div className="px-4 pt-4 md:px-6">{errorBanner}</div>}
+            <div className="min-h-0 flex-1">
+              <CalendarPage
                 activities={allActivities}
-                zones={activityZones}
-                onReview={handleReviewActivity}
-                reviewBusy={coachChat.busy}
+                plannedWorkouts={plannedWorkouts}
+                garmin={garmin}
+                syncing={syncing}
+                message={syncMessage}
+                onRefresh={refreshAll}
+                onAddPlanned={async (workout) => {
+                  await handleAddPlannedWorkout(workout);
+                  // Re-read so a plan for a day already trained shows as completed.
+                  await reloadPlannedWorkouts();
+                }}
+                onDeletePlanned={handleDeletePlannedWorkout}
+                onOpenCoach={() => setCoachOpen(true)}
               />
             </div>
+          </div>
+        ) : (
+          <PageShell
+            title={title}
+            tabs={tabs}
+            controls={controls}
+            status={syncMessage}
+            actions={
+              <HeaderActions
+                stravaConnected={stravaConnected}
+                athleteName={athleteName}
+                onConnectStrava={connectStrava}
+                onSync={handleSync}
+                syncing={syncing}
+                onOpenCoach={() => setCoachOpen(true)}
+              />
+            }
+          >
+            {errorBanner}
 
-            <SportAnalytics activities={filteredActivities} zones={zones} />
+            {page === "overview" && <OverviewPage activities={allActivities} fitness={fitness} races={races} garmin={garmin} />}
 
-            <WorkoutHistory activities={filteredActivities} />
+            {page === "training" && tab === "load" && (
+              <LoadView activities={filteredActivities} fitness={fitness} fatigue={fatigue} zones={zones} range={quickFilter} />
+            )}
+            {page === "training" && tab === "performance" && (
+              <PerformanceView activities={allActivities} zones={zones} range={quickFilter} sport={performanceSport} />
+            )}
+            {page === "training" && tab === "history" && (
+              <HistoryView>
+                <ActivityHistory activities={allActivities} zones={activityZones} onReview={handleReviewActivity} reviewBusy={coachChat.busy} />
+              </HistoryView>
+            )}
 
-            <GearCard gear={gear} />
+            {page === "recovery" && <RecoveryPage garmin={garmin} fitness={fitness} tab={tab as RecoveryTab} range={recoveryRange} />}
 
-            <PlannedWorkouts workouts={plannedWorkouts} activities={allActivities} onAdd={handleAddPlannedWorkout} />
-
-            {fatigue && <FatigueReadinessCard data={fatigue} activities={filteredActivities} rangeDays={rangeDays} />}
-
-            <AICoachPanel />
-          </>
+            {page === "plan" && (
+              <PlanPage
+                tab={tab as PlanTab}
+                races={races}
+                workouts={plannedWorkouts}
+                activities={allActivities}
+                gear={gear}
+                onAddRace={handleAddRace}
+                onEditRace={handleEditRace}
+                onDeleteRace={handleDeleteRace}
+                onAddWorkout={handleAddPlannedWorkout}
+              />
+            )}
+          </PageShell>
         )}
-      </div>
+      </main>
 
-      <CoachBubble chat={coachChat} open={coachOpen} setOpen={setCoachOpen} onPlanChanged={reloadPlannedWorkouts} />
+      {/* Opened from each page's header; a floating button would cover a chart. */}
+      <CoachBubble chat={coachChat} open={coachOpen} setOpen={setCoachOpen} onPlanChanged={reloadPlannedWorkouts} hideLauncher />
     </div>
   );
 }

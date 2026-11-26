@@ -60,6 +60,26 @@ Open http://localhost:5173. `.env.local` already points at
 `http://localhost:3001`; change `VITE_API_BASE_URL` there if the backend runs
 elsewhere.
 
+## Garmin (sleep and health data)
+
+Needs [uv](https://docs.astral.sh/uv/) (`winget install astral-sh.uv`). Then, from the project root:
+
+```bash
+npm run garmin:setup   # installs the Garmin MCP server and its Python library
+npm run garmin:login   # asks for your Garmin email, password and MFA code
+```
+
+The sign-in token is saved in `~/.garminconnect` (outside this project). Open the
+Recovery page and press Sync. Afterwards the Garmin button there fetches the
+selected date range (at least 30 days).
+
+To let Claude Code query Garmin too, register the same server, listing only
+`get_*` tools in `GARMIN_ENABLED_TOOLS` to keep it read-only:
+
+```bash
+claude mcp add garmin -e GARMIN_ENABLED_TOOLS=get_sleep_data,get_stats,get_hrv_data -- garmin-mcp
+```
+
 ## What's implemented
 
 - Upcoming races section (race cards, add-race modal, running/cycling/

@@ -9,6 +9,8 @@
     "dev:backend": "npm run dev --prefix backend",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "garmin:setup": "uv tool install --force --python 3.12 git+https://github.com/Taxuspt/garmin_mcp@a2ca5fcac34524b83814fe2fcf3d479f8a75983f",
+    "garmin:login": "garmin-mcp-auth",
     "lint": "eslint ."
   },
   "dependencies": {

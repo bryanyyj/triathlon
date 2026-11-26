@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --ext js,ts,json server.js",
-    "start": "node server.js",
+    "dev": "nodemon --experimental-sqlite --experimental-strip-types --ext js,ts,json server.js",
+    "start": "node --experimental-sqlite --experimental-strip-types server.js",
     "strava:auth": "node scripts/getStravaRefreshToken.js"
   },
   "dependencies": {

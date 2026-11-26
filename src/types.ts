@@ -160,3 +160,47 @@ export type GearAnalytics = {
 export type SportFilter = "all" | "swim" | "bike" | "run";
 
 export type QuickFilter = "7d" | "30d" | "90d" | "ytd" | "all";
+
+export type GarminStatus = {
+  installed: boolean;
+  signedIn: boolean;
+  syncing: boolean;
+  done: number;
+  total: number;
+  error: string | null;
+  errorCode: string | null;
+};
+
+// One local calendar day. Sleep values describe the night that ended that morning.
+export type GarminDay = {
+  date: string;
+  sleepSec?: number;
+  deepSec?: number;
+  lightSec?: number;
+  remSec?: number;
+  awakeSec?: number;
+  sleepScore?: number;
+  sleepStart?: string;
+  sleepEnd?: string;
+  sleepStress?: number;
+  respiration?: number;
+  steps?: number;
+  stepGoal?: number;
+  restingHr?: number;
+  avgStress?: number;
+  maxStress?: number;
+  bodyBatteryHigh?: number;
+  bodyBatteryLow?: number;
+  bodyBatteryCharged?: number;
+  bodyBatteryDrained?: number;
+  totalCalories?: number;
+  activeCalories?: number;
+  intensityMinutes?: number;
+  hrv?: number;
+  hrvWeekly?: number;
+  hrvBaselineLow?: number;
+  hrvBaselineHigh?: number;
+  hrvStatus?: string;
+  readiness?: number;
+  readinessLevel?: string;
+};

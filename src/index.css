@@ -4,6 +4,8 @@
 
 body {
   @apply bg-tri-bg text-white antialiased;
+  /* Native date pickers, selects and scrollbars follow the dark theme. */
+  color-scheme: dark;
 }
 
 @layer components {
@@ -87,6 +89,12 @@ body {
 }
 .coach-table th {
   background: theme("colors.tri-soft");
+}
+
+/* Slim vertical scrollbar for calendar cells. */
+.tri-scroll-y {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 /* Slim horizontal scrollbar for scrolling card rows (e.g. workout history). */
